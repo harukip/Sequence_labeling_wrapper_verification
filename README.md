@@ -1,9 +1,9 @@
 # Web_verification
 This project using CRF and Neural Network for Web data extraction
 ## Outline
-* [Training file generation](/prepare_train_with_set.ipynb)
-* [CRF Layer used in Neural Network](/crflayer.py)
+* [Training file generation](/Models/prepare_train_with_set.ipynb)
+* [CRF Layer used in Neural Network](/Models/crflayer.py)
 * Models
-  * [CRFSuite](/CRFsuite.ipynb)
-  * [CNN-CRF](/cnn-crf.ipynb)
-  * [CNN-MLP](/cnn-mlp.ipynb)
+  * [CRFSuite](/Models/CRFsuite.ipynb)
+  * [CNN-CRF](/Models/cnn-crf.ipynb)
+  * [CNN-MLP](/Models/cnn-mlp.ipynb)
