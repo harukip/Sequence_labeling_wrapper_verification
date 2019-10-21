@@ -1,5 +1,5 @@
-# Web_verification
-This project using CRF and Neural Network for Web data extraction
+# Sequence Labeling for Wrapper Verification
+This project using sequence labeling method for Wrapper verification
 ## Outline
 * [Training file generation](/Models/prepare_train_with_set.ipynb)
 * [CRF Layer used in Neural Network](/Models/crflayer.py)
