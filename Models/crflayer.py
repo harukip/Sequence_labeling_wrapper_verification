@@ -1,17 +1,19 @@
 # -*- coding:utf-8 -*-
-
+'''
+https://github.com/bojone/crf/
+'''
 from tensorflow.keras.layers import Layer
 import tensorflow.keras.backend as K
 import tensorflow as tf
 
 
 class CRF(Layer):
-    """纯Keras实现CRF层
-    CRF层本质上是一个带训练参数的loss计算层，因此CRF层只用来训练模型，
-    而预测则需要另外建立模型。
+    """
+    Use Keras to implement CRF Layer
     """
     def __init__(self, ignore_last_label=False, **kwargs):
-        """ignore_last_label：定义要不要忽略最后一个标签，起到mask的效果
+        """
+        ignore_last_label：Define to ignore the last label for mask or not.
         """
         self.ignore_last_label = 1 if ignore_last_label else 0
         super(CRF, self).__init__(**kwargs)
@@ -24,9 +26,11 @@ class CRF(Layer):
                                      trainable=True)
 
     def log_norm_step(self, inputs, states):
-        """递归计算归一化因子
-        要点：1、递归计算；2、用logsumexp避免溢出。
-        技巧：通过expand_dims来对齐张量。
+        """
+        Recursion calculate normalization factor
+        Point:  1.recursion
+               2.use logsumexp to avoid overflow.
+        Technique：use expand_dims to align tensor.
         """
         states = tf.expand_dims(states[0], 2) # (batch_size, output_dim, 1)
         trans = tf.expand_dims(self.trans, 0) # (1, output_dim, output_dim)
@@ -34,9 +38,10 @@ class CRF(Layer):
         return output+inputs, [output+inputs]
 
     def path_score(self, inputs, labels):
-        """计算目标路径的相对概率（还没有归一化）
-        要点：逐标签得分，加上转移概率得分。
-        技巧：用“预测”点乘“目标”的方法抽取出目标路径的得分。
+        """
+        Calculate target path relative possibility（Not normalized）
+        Point：Get point from each label and add transition possibility score.
+        Technique：use predict dot target to extract score of target path.
         """
         point_score = tf.math.reduce_sum(tf.math.reduce_sum(inputs*labels, 2), 1, keepdims=True) # 逐标签得分
         labels1 = tf.expand_dims(labels[:, :-1], 3)
