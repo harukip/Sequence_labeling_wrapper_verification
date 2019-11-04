@@ -6,4 +6,5 @@ This project using sequence labeling method for Wrapper verification
 * Models
   * [CRFSuite](/Models/CRFsuite.ipynb)
   * [CNN-CRF](/Models/cnn-crf.ipynb)
+  * when encounter OOM problem use [CNN-CRF-OOM](/Models/cnn-crf-OOM.ipynb)
   * [CNN-MLP](/Models/cnn-mlp.ipynb)
