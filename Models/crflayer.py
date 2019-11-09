@@ -72,3 +72,8 @@ class CRF(Layer):
             return tf.math.reduce_mean(isequal)
         else:
             return tf.math.reduce_sum(isequal*mask) / tf.math.reduce_sum(mask)
+
+    def get_config(self):
+        config = {"ignore_last_label":self.ignore_last_label}
+        base_config = super(CRF, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
