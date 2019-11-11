@@ -49,7 +49,7 @@ class CRF(Layer):
         labels = labels1 * labels2 # 两个错位labels，负责从转移矩阵中抽取目标转移得分
         trans = tf.expand_dims(tf.expand_dims(self.trans, 0), 0)
         trans_score = tf.math.reduce_sum(tf.math.reduce_sum(trans*labels, [2,3]), 1, keepdims=True)
-        return point_score+trans_score # 两部分得分之和
+        return tf.math.add(point_score, trans_score) # 两部分得分之和
 
     def call(self, inputs): # CRF本身不改变输出，它只是一个loss
         return inputs
@@ -61,7 +61,7 @@ class CRF(Layer):
         log_norm,_,_ = K.rnn(self.log_norm_step, y_pred[:,1:], init_states, mask=mask) # 计算Z向量（对数）
         log_norm = tf.math.reduce_logsumexp(log_norm, 1, keepdims=True) # 计算Z（对数）
         path_score = self.path_score(y_pred, y_true) # 计算分子（对数）
-        return log_norm - path_score # 即log(分子/分母)
+        return tf.math.subtract(log_norm, path_score) # 即log(分子/分母)
 
     def accuracy(self, y_true, y_pred): # 训练过程中显示逐帧准确率的函数，排除了mask的影响
         mask = 1-y_true[:,:,-1] if self.ignore_last_label else None
@@ -74,6 +74,8 @@ class CRF(Layer):
             return tf.math.reduce_sum(isequal*mask) / tf.math.reduce_sum(mask)
 
     def get_config(self):
-        config = {"ignore_last_label":self.ignore_last_label}
+        config = {
+            'ignore_last_label': self.ignore_last_label
+        }
         base_config = super(CRF, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
