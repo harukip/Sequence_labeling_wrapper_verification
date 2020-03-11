@@ -20,7 +20,7 @@ def train_file_generate(set_total, current_path):
     table_name = os.path.join(current_path, "data", "TableA.txt")
     print("Train Table Opening:" + table_name + "\n")
     table_a = open(table_name, "r")
-    output_name = os.path.join(current_path, "data", "train_raw.txt")
+    output_name = os.path.join(current_path, "data", "train_raw.csv")
     #print("Generating:" + output_name + "\n")
 
     Set_index = {}
@@ -141,7 +141,7 @@ def test_file_generate(current_path):
     table_name = os.path.join(current_path, "data", "GA.txt")
     print("Test Table Opening:" + table_name + "\n")
     table_a = open(table_name, "r")
-    output_name = os.path.join(current_path, "data", "ytest_raw.txt")
+    output_name = os.path.join(current_path, "data", "ytest_raw.csv")
     #print("Generating:" + output_name + "\n")
     output = open(output_name, "w")
     

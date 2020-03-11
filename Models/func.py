@@ -86,7 +86,7 @@ def node_data(data, num, max_num):
         output.append(tmp)
     return output
 
-def CRFSuite_proccess_data(df):
+def CRFSuite_process_data(df):
     '''
     Load the csv file and convert it to numpy array for train and test.
     '''
