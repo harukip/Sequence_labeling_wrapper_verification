@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import numpy as np
@@ -13,15 +13,15 @@ import os
 
 # Open the DCADE output TableA.txt and read page file to give each node data corresponding labels (column number).
 
-# In[2]:
+# In[ ]:
 
 
 def train_file_generate(set_total, current_path):
     table_name = os.path.join(current_path, "data", "TableA.txt")
-    print("Table Opening:" + table_name + "\n")
+    print("Train Table Opening:" + table_name + "\n")
     table_a = open(table_name, "r")
     output_name = os.path.join(current_path, "data", "train_raw.txt")
-    print("Generating:" + output_name + "\n")
+    #print("Generating:" + output_name + "\n")
 
     Set_index = {}
 
@@ -37,9 +37,10 @@ def train_file_generate(set_total, current_path):
         '''
         line = table_a.readline()
         slot = line.rstrip("\n").split("\t")
-    print("find coltype")
+    print("Train file find coltype\n", "-"*80)
     col = []
     line = table_a.readline() # Read first line
+    data_list = [[], [], [], [], [], [], [], [], []]
     while(line != ""):
         slot = line.rstrip("\n").split("\t")
         page_name = slot[0]
@@ -107,7 +108,6 @@ def train_file_generate(set_total, current_path):
                 print(i)'''
         #print(label_dict)
         #count = 0
-        data_list = [[], [], [], [], [], [], [], [], []]
         for i in range(max(label_dict.keys())+1): # Loop each recorded node and output as train file
             Leafnode = page_file[col_name[0]][i]
             PTypeSetid = page_file[col_name[6]][i]
@@ -134,18 +134,72 @@ def train_file_generate(set_total, current_path):
     return data, Set_index
 
 
-# In[3]:
+# In[ ]:
+
+
+def test_file_generate(current_path):
+    table_name = os.path.join(current_path, "data", "GA.txt")
+    print("Test Table Opening:" + table_name + "\n")
+    table_a = open(table_name, "r")
+    output_name = os.path.join(current_path, "data", "ytest_raw.txt")
+    #print("Generating:" + output_name + "\n")
+    output = open(output_name, "w")
+    
+    output.write("Leafnode\tPTypeSet\tTypeSet\tContentid\tPathid\tSimseqid\tPath\tContent\tLabel\n")
+    line = table_a.readline()
+    slot = line.rstrip("\n").split("\t")
+    while(slot[0]!="ColType"):
+        line = table_a.readline()
+        slot = line.rstrip("\n").split("\t")
+    print("Test file find coltype\n", "-"*80)
+    line = table_a.readline() # Read
+    data_list = [[], [], [], [], [], [], [], [], []]
+    while(line != ""):
+        slot = line.rstrip("\n").split("\t")
+        page_name = slot[0]
+        if slot[0] == "":
+            break
+        page_file = pd.read_csv(os.path.join(current_path, "Output", page_name), sep='\t')
+        col_name = []
+        for i in page_file.columns:
+            col_name.append(i)
+        #print("open "+ page_name)
+        label_dict = {}
+        for node in range(len(page_file[col_name[0]])):
+            Leafnode = page_file[col_name[0]][node]
+            PTypeSetid = page_file[col_name[6]][node]
+            TypeSetid = page_file[col_name[7]][node]
+            Contentid = page_file[col_name[8]][node].split("-")[1]
+            Pathid = page_file[col_name[9]][node]
+            SimSeqid = page_file[col_name[10]][node]
+            Path = page_file[col_name[2]][node]
+            Content = page_file[col_name[1]][node]
+            cols = [Leafnode, PTypeSetid, TypeSetid, Contentid, Pathid, SimSeqid, Path, Content]
+            for c in range(len(cols)):
+                output.write(str(cols[c]) + "\t")
+                data_list[c].append(cols[c])
+            output.write(str(0) + "\n")
+            data_list[len(cols)].append(0)
+        line = table_a.readline() # Read
+    output.close()
+    data = pd.DataFrame(np.transpose(np.array(data_list)), 
+                 columns=["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid", "Path", "Content", "Label"])
+    return data
+
+
+# In[ ]:
 
 
 if __name__ == "__main__":
-    set_total = 0
+    set_total = 3
     current_path = os.path.join(os.path.expanduser("~"), "jupyter", "web_verification")
     print(current_path)
-    data, Set_index = train_file_generate(set_total, current_path)
+    x, Set_index = train_file_generate(set_total, current_path)
     if set_total > 0:
         with open(os.path.join(current_path, "data", "Set_idx.txt"), "w") as set_file:
             set_file.write(str(Set_index))
         print(Set_index)
+    y = test_file_generate(current_path)
 
 
 # In[ ]:
