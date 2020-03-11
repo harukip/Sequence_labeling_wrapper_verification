@@ -35,9 +35,9 @@ def train_file_generate(set_total, current_path):
         '''
         Loop until we find the "ColType" in the table file to start generate training data.
         '''
-        print("find coltype")
         line = table_a.readline()
         slot = line.rstrip("\n").split("\t")
+    print("find coltype")
     col = []
     line = table_a.readline() # Read first line
     while(line != ""):
@@ -67,7 +67,7 @@ def train_file_generate(set_total, current_path):
         for i in page_file.columns: # Save all column name
             col_name.append(i)
 
-        print("open "+ page_name)
+        #print("open "+ page_name)
         label_dict = {} # Define Dict of labels for each node
         for leafnode in page_file[col_name[0]]: # Loop each node in page
             for pos in range(len(col)): # Loop all col
@@ -130,7 +130,7 @@ def train_file_generate(set_total, current_path):
         line = table_a.readline()
     output.close()
     data = pd.DataFrame(np.transpose(np.array(data_list)), 
-                 columns=["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid", "Path", "Content", "Label"]).set_index("Leafnode")
+                 columns=["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid", "Path", "Content", "Label"])
     return data, Set_index
 
 
@@ -146,12 +146,6 @@ if __name__ == "__main__":
         with open(os.path.join(current_path, "data", "Set_idx.txt"), "w") as set_file:
             set_file.write(str(Set_index))
         print(Set_index)
-
-
-# In[4]:
-
-
-data
 
 
 # In[ ]:
