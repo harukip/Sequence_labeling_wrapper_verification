@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import pandas as pd
 from tqdm import tqdm
 
 def max_num_set(set_total, set_data_count):
@@ -110,3 +111,88 @@ def predict_output(current_path, model_name, set_num, col_type, result, max_labe
                             empty = False
                             break
                 file.write("\n")
+
+def Set_train_file_generate(set_total, current_path, model_name, data, max_num):
+    set_data_count = []
+    if set_total > 0:
+        df = []
+        for set_t in range(set_total):
+            with open(os.path.join(current_path, "data", "Set-"+ str(set_t+1) +".txt"), "r") as set_file:
+                set_tmp = []
+                output_name = os.path.join(current_path, model_name, "set", "Set-"+ str(set_t+1) +"_train_raw.csv")
+                output = open(output_name, "w")
+                output.write("Leafnode\tPTypeSet\tTypeSet\tContentid\tPathid\tSimseqid\tLabel\n")
+                line = set_file.readline()
+                slot = line.rstrip("\n").split("\t")
+                while(slot[0]!="ColType"): 
+                    line = set_file.readline()
+                    slot = line.rstrip("\n").split("\t")
+                with open(os.path.join(current_path, "set", "Set-"+ str(set_t+1) +"_coltype.txt"), "w") as col_file:
+                    col_file.write(str(slot[1:]))
+                line = set_file.readline() # First line of data
+                page_num = 0
+                count = 0
+                data_list = [[], [], [], [], [], [], []]
+                while(line != ""):
+                    slot = line.rstrip("\n").split("\t")
+                    data_info = slot[0].split("-")
+                    if(page_num != int(data_info[1])):
+                        set_tmp.append(count)
+                        count = 0
+                    set_num = int(data_info[0])
+                    page_num = int(data_info[1])
+                    idx = 1
+                    sub_list = slot[1:]
+                    while("" in sub_list):
+                        sub_list.remove("")
+                    while(" " in sub_list):
+                        sub_list.remove(" ")
+                    for element in sub_list:
+                        count += 1
+                        element = int(element)
+                        #print(content_train[page_num][element])
+                        num_idx = page_num * max_num + element
+                        cols = ["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid"]
+                        for c in range(len(cols)):
+                            output.write(str(data[num_idx][c]) + "\t")
+                            data_list[c].append(data[num_idx][c])
+                        output.write(str(idx) + "\n")
+                        data_list[len(cols)].append(idx)
+                        idx += 1
+                    line = set_file.readline()
+                set_tmp.append(count)
+                output.close()
+            set_data_count.append(set_tmp)
+            df.append(pd.DataFrame(np.transpose(np.array(data_list)), 
+                                   columns = ["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid", "Label"]))
+        with open(os.path.join(current_path, model_name, "set", "set_train_count.txt"), "w") as file:
+            file.write(str(set_data_count))
+    return df, set_data_count
+
+def Set_test_file_generate(set_total, current_path, model_name, Set_data, data, max_num):
+    set_data_count = []
+    if set_total > 0:
+        df = []
+        for set_t in range(set_total):
+            set_tmp = []
+            with open(os.path.join(current_path, model_name, "set", "Set-"+ str(set_t+1) +"_ytest_raw.csv"), "w") as set_file:
+                set_file.write("Leafnode\tPTypeSet\tTypeSet\tContentid\tPathid\tSimseqid\tLabel\n")
+                data_list = [[], [], [], [], [], [], []]
+                for pages in tqdm(range(len(Set_data))):
+                    count = 0
+                    for node in Set_data[pages][set_t]:
+                        count += 1
+                        node_idx = pages * max_num + int(node)
+                        cols = ["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid"]
+                        for c in range(len(cols)):
+                            set_file.write(str(data[node_idx][c]) + "\t")
+                            data_list[c].append(data[node_idx][c])
+                        set_file.write(str(0) + "\n")
+                        data_list[len(cols)].append(0)
+                    set_tmp.append(count)
+            set_data_count.append(set_tmp)
+            df.append(pd.DataFrame(np.transpose(np.array(data_list)), 
+                                   columns = ["Leafnode", "PTypeSet", "TypeSet", "Contentid", "Pathid", "Simseqid", "Label"]))
+        with open(os.path.join(current_path, model_name, "set", "set_test_count.txt"), "w") as file:
+            file.write(str(set_data_count))
+    return df, set_data_count
