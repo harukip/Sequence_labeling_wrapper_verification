@@ -2,6 +2,7 @@ import numpy as np
 from tqdm import tqdm
 import os
 import pandas as pd
+import tensorflow as tf
 
 def node_num(data):
     '''
@@ -86,11 +87,37 @@ def node_data(data, num, max_num):
         output.append(tmp)
     return output
 
-def CRFSuite_process_data(df):
+def node_emb(data, num, pad_len, max_num):
+    '''
+    Padding the emb with empty when that page is less than max_num leafnode
+    '''
+    output = []
+    count = 0
+    tmp2 = []
+    for j in range(pad_len):
+        tmp2.append('0')
+    for page_num in num:
+        tmp = []
+        page = 0
+        if page_num == max_num:
+            for i in range(page_num):
+                tmp.append(data[count])
+                count += 1
+            page += 1
+        else:
+            for i in range(page_num):
+                tmp.append(data[count])
+                count += 1
+            for i in range(max_num - page_num):
+                tmp.append(tmp2)
+            page += 1
+        output.append(tmp)
+    return output
+
+def CRFSuite_process_data(df, max_num, max_label):
     '''
     Load the csv file and convert it to numpy array for train and test.
     '''
-    max_num, max_label = load_data_num(df, True)
     num, index = node_num(df['Leafnode'])
     cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
     features = []
@@ -100,23 +127,51 @@ def CRFSuite_process_data(df):
     
     feature = np.concatenate([feature for feature in features], -1)
     feature = np.reshape(feature, [features[0].shape[0]*max_num, 6])
+    
     label_array = np.array(label_padding(df['Label'], num, max_num)).astype('int32')
     m_label = df['Label'].max()
-    label = []
-    for pages in range(len(label_array)): # Loop each page
-        page = []
-        for node in range(len(label_array[pages])): # Loop each node
-            node_label = []
-            for label_t in range(int(max_label) + 1): # Loop each label and a additional empty label ex.1~142 0 is empty
-                if label_t == label_array[pages][node]:
-                    node_label.append(1.0)
-                else:
-                    node_label.append(0.0)
-            page.append(node_label)
-        label.append(page)
-    label = np.array(label)
     label_array = label_array.flatten()
     return feature, label_array, m_label
+
+def cnn_process_data(df, tokenizer_path, tokenizer_content, path_max_len, con_max_len):
+    '''
+    Load the csv file and convert it to np array.
+    '''
+    max_num, max_label = load_data_num(df, True)
+    num, index = node_num(df['Leafnode'])
+    
+    num_cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
+    features = []
+    word_features = []
+    tokenizer_path.fit_on_texts(df['Path'])
+    tokenizer_content.fit_on_texts(df['Content'])
+    path_encoded = tokenizer_path.texts_to_sequences(df['Path'])
+    df['Content'] = df['Content'].str.replace('/|\.|\?|:|=|,|<|>|&|@|\+|-|#|~|\|', ' ')
+    df['Content'] = df['Content'].astype(str)
+    content_encoded = tokenizer_content.texts_to_sequences(df['Content'])
+    path_pad = tf.keras.preprocessing.sequence.pad_sequences(path_encoded, path_max_len, padding='post')
+    content_pad = tf.keras.preprocessing.sequence.pad_sequences(content_encoded, con_max_len, padding='post')
+    num, index = node_num(df['Leafnode'])
+    
+    word_cols = [path_pad, content_pad]
+    word_max_len = [path_max_len, con_max_len]
+    
+    for c in range(len(num_cols)):
+        features.append(np.array(node_data(df[num_cols[c]], num, max_num)).astype('int32'))
+        features[c] = np.expand_dims(features[c], -1)
+    
+    for c in range(len(word_cols)):
+        word_features.append(np.array(node_emb(word_cols[c], num, word_max_len[c], max_num)).astype('int32'))
+    label_array = np.array(label_padding(df['Label'], num, max_num)).astype('int32')
+    m_label = df['Label'].max()
+    
+    feature = np.concatenate([feature for feature in features], -1)
+    feature = np.reshape(feature, [features[0].shape[0]*max_num, 6])
+    
+    word = [np.reshape(word_features[c], [word_features[c].shape[0]*max_num, word_max_len[c]]) for c in range(len(word_cols))]
+    feature = feature.astype('float32')
+    label_array = label_array.flatten()
+    return feature, word, label_array, m_label
 
 def word2features(sent, i):
     '''
@@ -232,3 +287,43 @@ def predict_output(set_total, current_path, model_name, col_type, result, max_la
         with open(os.path.join(current_path, model_name, "set", "Set_data.txt"), "w") as set_train_file:
             set_train_file.write(str(Set_data))
     return Set_data
+
+class LossHistory(tf.keras.callbacks.Callback):
+    '''
+    Draw the figure of train
+    '''
+    def on_train_begin(self, logs={}):
+        self.losses = {'batch':[], 'epoch':[]}
+        self.accuracy = {'batch':[], 'epoch':[]}
+        self.val_loss = {'batch':[], 'epoch':[]}
+        self.val_acc = {'batch':[], 'epoch':[]}
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses['batch'].append(logs.get('loss'))
+        self.accuracy['batch'].append(logs.get('accuracy'))
+        self.val_loss['batch'].append(logs.get('val_loss'))
+        self.val_acc['batch'].append(logs.get('val_accuracy'))
+
+    def on_epoch_end(self, batch, logs={}):
+        self.losses['epoch'].append(logs.get('loss'))
+        self.accuracy['epoch'].append(logs.get('accuracy'))
+        self.val_loss['epoch'].append(logs.get('val_loss'))
+        self.val_acc['epoch'].append(logs.get('val_accuracy'))
+
+    def loss_plot(self, loss_type):
+        iters = range(len(self.losses[loss_type]))
+        f1 = plt.figure(1)
+        plt.plot(iters, self.accuracy[loss_type], 'r', label='train acc')
+        plt.plot(iters, self.val_acc[loss_type], 'b', label='val acc')
+        plt.grid(True)
+        plt.xlabel(loss_type)
+        plt.ylabel('acc')
+
+        f2 = plt.figure(2)
+        plt.plot(iters, self.losses[loss_type], 'r', label='train loss')
+        plt.plot(iters, self.val_loss[loss_type], 'b', label='val loss')
+        plt.grid(True)
+        plt.xlabel(loss_type)
+        plt.ylabel('loss')
+
+        plt.show()
