@@ -105,3 +105,9 @@ venv.bak/
 
 # website data
 data/*
+
+# record data
+record.txt
+
+# run all
+run_all.ipynb
