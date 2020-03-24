@@ -114,65 +114,6 @@ def node_emb(data, num, pad_len, max_num):
         output.append(tmp)
     return output
 
-def CRFSuite_process_data(df, max_num, max_label):
-    '''
-    Load the csv file and convert it to numpy array for train and test.
-    '''
-    num, index = node_num(df['Leafnode'])
-    cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
-    features = []
-    for c in range(len(cols)):
-        features.append(np.array(node_data(df[cols[c]], num, max_num)))
-        features[c] = np.expand_dims(features[c], -1)
-    
-    feature = np.concatenate([feature for feature in features], -1)
-    feature = np.reshape(feature, [features[0].shape[0]*max_num, 6])
-    
-    label_array = np.array(label_padding(df['Label'], num, max_num)).astype('int32')
-    m_label = df['Label'].max()
-    label_array = label_array.flatten()
-    return feature, label_array, m_label
-
-def cnn_process_data(df, tokenizer_path, tokenizer_content, path_max_len, con_max_len):
-    '''
-    Load the csv file and convert it to np array.
-    '''
-    max_num, max_label = load_data_num(df, True)
-    num, index = node_num(df['Leafnode'])
-    
-    num_cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
-    features = []
-    word_features = []
-    tokenizer_path.fit_on_texts(df['Path'])
-    tokenizer_content.fit_on_texts(df['Content'])
-    path_encoded = tokenizer_path.texts_to_sequences(df['Path'])
-    df['Content'] = df['Content'].str.replace('/|\.|\?|:|=|,|<|>|&|@|\+|-|#|~|\|', ' ')
-    df['Content'] = df['Content'].astype(str)
-    content_encoded = tokenizer_content.texts_to_sequences(df['Content'])
-    path_pad = tf.keras.preprocessing.sequence.pad_sequences(path_encoded, path_max_len, padding='post')
-    content_pad = tf.keras.preprocessing.sequence.pad_sequences(content_encoded, con_max_len, padding='post')
-    num, index = node_num(df['Leafnode'])
-    
-    word_cols = [path_pad, content_pad]
-    word_max_len = [path_max_len, con_max_len]
-    
-    for c in range(len(num_cols)):
-        features.append(np.array(node_data(df[num_cols[c]], num, max_num)).astype('int32'))
-        features[c] = np.expand_dims(features[c], -1)
-    
-    for c in range(len(word_cols)):
-        word_features.append(np.array(node_emb(word_cols[c], num, word_max_len[c], max_num)).astype('int32'))
-    label_array = np.array(label_padding(df['Label'], num, max_num)).astype('int32')
-    m_label = df['Label'].max()
-    
-    feature = np.concatenate([feature for feature in features], -1)
-    feature = np.reshape(feature, [features[0].shape[0]*max_num, 6])
-    
-    word = [np.reshape(word_features[c], [word_features[c].shape[0]*max_num, word_max_len[c]]) for c in range(len(word_cols))]
-    feature = feature.astype('float32')
-    label_array = label_array.flatten()
-    return feature, word, label_array, m_label
-
 def word2features(sent, i):
     '''
     Convert each feature into CRFSuite input form.
@@ -287,6 +228,15 @@ def predict_output(set_total, current_path, model_name, col_type, result, max_la
         with open(os.path.join(current_path, model_name, "set", "Set_data.txt"), "w") as set_train_file:
             set_train_file.write(str(Set_data))
     return Set_data
+
+def process_time(current_path, model_name, t, ts, page_c):
+    with open(os.path.join(current_path, model_name, "data", "time_crf.txt"),"w") as timef:
+        print("\ntrain time:"+str(t))
+        timef.write("train:"+str(t)+"\n")
+        print("test time:"+str(ts))
+        print("per page:"+ str(float(ts)/page_c)+"\n")
+        timef.write("test:"+str(ts)+"\n")
+        timef.write("per page:"+ str(float(ts)/page_c)+"\n")
 
 class LossHistory(tf.keras.callbacks.Callback):
     '''
