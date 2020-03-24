@@ -230,7 +230,7 @@ def predict_output(set_total, current_path, model_name, col_type, result, max_la
     return Set_data
 
 def process_time(current_path, model_name, t, ts, page_c):
-    with open(os.path.join(current_path, model_name, "data", "time_crf.txt"),"w") as timef:
+    with open(os.path.join(current_path, model_name, "data", "time.txt"),"w") as timef:
         print("\ntrain time:"+str(t))
         timef.write("train:"+str(t)+"\n")
         print("test time:"+str(ts))

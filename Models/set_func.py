@@ -102,8 +102,8 @@ def predict_output(current_path, model_name, set_num, col_type, result, max_labe
 
 def Set_train_file_generate(set_total, current_path, model_name, data, word_data, max_num):
     set_data_count = []
+    df = []
     if set_total > 0:
-        df = []
         for set_t in range(set_total):
             with open(os.path.join(current_path, "data", "Set-"+ str(set_t+1) +".txt"), "r") as set_file:
                 set_tmp = []
@@ -160,18 +160,18 @@ def Set_train_file_generate(set_total, current_path, model_name, data, word_data
                 output.close()
             set_data_count.append(set_tmp)
             df.append(pd.DataFrame(np.transpose(np.array(data_list)), 
-                                   columns = ["Leafnode", "PTypeSet", 
-                                              "TypeSet", "Contentid", 
-                                              "Pathid", "Simseqid", 
-                                              "Path", "Content", "Label"]))
+                              columns = ["Leafnode", "PTypeSet", 
+                                         "TypeSet", "Contentid", 
+                                         "Pathid", "Simseqid", 
+                                         "Path", "Content","Label"]))
         with open(os.path.join(current_path, model_name, "set", "set_train_count.txt"), "w") as file:
             file.write(str(set_data_count))
     return df, set_data_count
 
 def Set_test_file_generate(set_total, current_path, model_name, Set_data, data, word_data, max_num):
     set_data_count = []
+    df = []
     if set_total > 0:
-        df = []
         for set_t in range(set_total):
             set_tmp = []
             with open(os.path.join(current_path, model_name, "set", "Set-"+ str(set_t+1) +"_ytest_raw.csv"), "w") as set_file:
@@ -199,10 +199,10 @@ def Set_test_file_generate(set_total, current_path, model_name, Set_data, data, 
                     set_tmp.append(count)
             set_data_count.append(set_tmp)
             df.append(pd.DataFrame(np.transpose(np.array(data_list)), 
-                                   columns = ["Leafnode", "PTypeSet", 
-                                              "TypeSet", "Contentid", 
-                                              "Pathid", "Simseqid", 
-                                              "Path", "Content", "Label"]))
+                              columns = ["Leafnode", "PTypeSet", 
+                                         "TypeSet", "Contentid", 
+                                         "Pathid", "Simseqid", 
+                                         "Path", "Content", "Label"]))
         with open(os.path.join(current_path, model_name, "set", "set_test_count.txt"), "w") as file:
             file.write(str(set_data_count))
     return df, set_data_count

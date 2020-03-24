@@ -332,10 +332,11 @@ def cnn_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len):
 
 if __name__ == "__main__":
     # How many Set
-    set_total = 1
     model_name = "cnn"
     current_path = os.path.join(os.path.expanduser("~"), "jupyter", "Sequence_Labeling_Wrapper_Verification", "data")
-    
+    data_path = os.path.join(current_path, "data")
+    set_total = len(glob.glob(os.path.join(data_path, "Set-*")))
+    print("Set:", set_total)
     # GPU
     gpu_limit(1)
     
@@ -360,7 +361,7 @@ if __name__ == "__main__":
     page_num = int(len(y_train)/max_num)
     
     # Define model
-    model = full_model(max_num, max_label_train)
+    model = model_word_only(max_num, max_label_train)
     history = func.LossHistory()
     model.compile(
         loss='sparse_categorical_crossentropy',
@@ -413,7 +414,7 @@ if __name__ == "__main__":
         BATCH_SIZE = max_num      # batch size
         VAL_BATCH_SIZE = max_num  # Validation batch size
         page_num = int(len(set_X_train)/max_num)
-        set_model = full_model(max_num, max_label)
+        set_model = model_word_only(max_num, max_label)
         history = func.LossHistory()
         set_model.compile(
             loss='sparse_categorical_crossentropy',
