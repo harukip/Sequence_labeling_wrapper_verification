@@ -58,7 +58,7 @@ def get_col_type(current_path, set_num):
 
 def predict_output(current_path, model_name, set_num, col_type, result, max_label, feature_test, max_num):
     Set = []
-    with open(os.path.join(current_path, model_name, "set", "set-" + str(set_num + 1)+".csv"), "w") as file:
+    with open(os.path.join(current_path, model_name, "set-" + str(set_num + 1)+".csv"), "w") as file:
         for col in col_type: # loop to write the Col type
             file.write(col + "\t")
         file.write("\n")
