@@ -115,7 +115,7 @@ class EarlyStoppingByLossVal(tf.keras.callbacks.Callback):
 # In[ ]:
 
 
-def full_model(max_num, max_label, OOM_Split):
+def full_model(crf, max_num, max_label, OOM_Split):
     '''
     Model definition for our experiments using tensorflow keras.
     '''
@@ -153,7 +153,7 @@ def full_model(max_num, max_label, OOM_Split):
 
     return model
 
-def model_word_only(max_num, max_label, OOM_Split):
+def model_word_only(crf, max_num, max_label, OOM_Split):
     '''
     Model definition for our experiments using tensorflow keras.
     '''
@@ -240,7 +240,7 @@ def get_result(predictions, max_num):
 # In[ ]:
 
 
-def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_len, con_max_len, OOM_Split):
+def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_len, con_max_len, OOM_Split, one_hot, isTrain):
     '''
     Load the csv file and convert it to np array.
     '''
@@ -279,8 +279,10 @@ def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
     
     feature = feature.astype('float32')
     label_array = label_array.flatten()
-    one_hot = OneHotEncoder()
-    y_onehot = one_hot.fit_transform(np.reshape(label_array, [-1, 1])).toarray()
+    if isTrain:
+        y_onehot = one_hot.fit_transform(np.reshape(label_array, [-1, 1])).toarray()
+    else:
+        y_onehot = one_hot.transform(np.reshape(label_array, [-1, 1])).toarray()
     y_onehot = np.reshape(y_onehot, [-1, int(max_num/OOM_Split), max_label+1])
     return feature, word, y_onehot, m_label
 
@@ -288,7 +290,7 @@ def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
 # In[ ]:
 
 
-def emb_padding_set(df, set_count, set_num, pad_len):
+def emb_padding_set(df, set_count, max_set, set_num, pad_len):
     emb = []
     tmp = []
     for i in range(pad_len):
@@ -310,8 +312,7 @@ def emb_padding_set(df, set_count, set_num, pad_len):
 # In[ ]:
 
 
-def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, OOM_Split):
-    num, index = func.node_num(df['Leafnode'])
+def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, OOM_Split, one_hot, isTrain):
     cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
     features = []
     word_features = []
@@ -322,7 +323,7 @@ def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, 
     word_cols = ["Path", "Content"]
     word_max_len = [path_max_len, con_max_len]
     for c in range(len(word_cols)):
-        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, set_num, word_max_len[c])).astype('int32'))
+        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, max_set, set_num, word_max_len[c])).astype('int32'))
     
     features = np.concatenate([feature for feature in features], -1)
     features = np.reshape(features, [-1, max_set[set_num], 6])
@@ -332,10 +333,12 @@ def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, 
     features = features.astype('float32')
     label = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_set)).astype('int32')
     label = label.flatten()
-    one_hot = OneHotEncoder()
-    y_onehot = one_hot.fit_transform(np.reshape(label, [-1, 1])).toarray()
+    if isTrain:
+        y_onehot = one_hot.fit_transform(np.reshape(label, [-1, 1])).toarray()
+    else:
+        y_onehot = one_hot.transform(np.reshape(label, [-1, 1])).toarray()
     y_onehot = np.reshape(y_onehot, [-1, int(max_set[set_num]/OOM_Split), max_label+1])
-    return features, word, label
+    return features, word, y_onehot
 
 
 # In[ ]:
@@ -371,9 +374,10 @@ if __name__ == "__main__":
             if max_num%OOM_Split != 0: # Let max num can be spilt into 10.
                 max_num += OOM_Split - max_num%OOM_Split
 
+            one_hot = OneHotEncoder()
             X_train, word_train, y_train, _ = crf_process_data(train_data, max_num, tokenizer_path, 
                                                                tokenizer_content, path_max_len, 
-                                                               con_max_len, OOM_Split)
+                                                               con_max_len, OOM_Split, one_hot, True)
 
             path_word_size = len(tokenizer_path.index_docs)
             con_word_size = len(tokenizer_content.index_docs)
@@ -381,7 +385,7 @@ if __name__ == "__main__":
 
             # Define model
             crf = CRF(False)
-            model = full_model(max_num, max_label_train, OOM_Split)
+            model = model_word_only(crf, max_num, max_label_train, OOM_Split)
             history = func.LossHistory()
             model.compile(
                 loss=crf.loss,
@@ -407,7 +411,7 @@ if __name__ == "__main__":
     # Load test feature
     X_test, word_test, y_test, _ = crf_process_data(test_data, max_num, tokenizer_path, 
                                                     tokenizer_content, path_max_len, 
-                                                    con_max_len, OOM_Split)
+                                                    con_max_len, OOM_Split, one_hot, False)
     
     # Start testing
     ts_start = time.time()
@@ -419,8 +423,17 @@ if __name__ == "__main__":
     result = get_result(pred, max_num)
     col_type = func.get_col_type(current_path)
     Set_data = func.predict_output(set_total, current_path, model_name, col_type, result, max_label_train, col_set_dict)
-    set_train_data, set_train_count = set_func.Set_train_file_generate(set_total, current_path, model_name, X_train, word_train, max_num)
-    set_test_data, set_test_count = set_func.Set_test_file_generate(set_total, current_path, model_name, Set_data, X_test, word_test, max_num)
+    
+    word_max_len = [path_max_len, con_max_len]
+    set_X_train = np.reshape(X_train, [-1, 6])
+    set_word_train = [np.reshape(word_train[c], [-1, word_max_len[c]]) for c in range(len(word_train))]
+    set_X_test = np.reshape(X_test, [-1, 6])
+    set_word_test = [np.reshape(word_test[c], [-1, word_max_len[c]]) for c in range(len(word_train))]
+    
+    set_train_data, set_train_count = set_func.Set_train_file_generate(set_total, current_path, model_name, 
+                                                                       set_X_train, set_word_train, max_num)
+    set_test_data, set_test_count = set_func.Set_test_file_generate(set_total, current_path, model_name, 
+                                                                    Set_data, set_X_test, set_word_test, max_num)
     page_c = len(result)
     
     # Process set
@@ -430,33 +443,37 @@ if __name__ == "__main__":
     for i in range(len(max_num_train)):
         max_set.append(max(max_num_train[i], max_num_test[i]))
     
+    set_crf = [CRF(False) for _ in range(set_total)]
+    set_model = []
+    set_one_hot = []
     for num in range(set_total):
         max_num = max_set[num]
         max_label = max(set_train_data[num]['Label'])
         OOM_Split = 1
+        set_one_hot.append(OneHotEncoder())
         while True:
             try:
                 set_X_train, set_word_train, set_y_train = crf_process_set(set_train_data[num], 
                                                                            set_train_count, num, 
                                                                            max_set, path_max_len, 
-                                                                           con_max_len, OOM_Split)
-                
+                                                                           con_max_len, OOM_Split, set_one_hot[num], True)
+
                 page_num = int(len(set_X_train)/max_num)
-                set_model = full_model(max_num, max_label, OOM_Split)
+                set_model.append(model_word_only(set_crf[num], max_num, max_label, OOM_Split))
                 history = func.LossHistory()
-                set_model.compile(
-                    loss='sparse_categorical_crossentropy',
+                set_model[num].compile(
+                    loss=set_crf[num].loss,
                     optimizer=opt,
-                    metrics=['accuracy']
+                    metrics=[set_crf[num].accuracy]
                 )
-                print(set_model.summary())
+                print(set_model[num].summary())
                 stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', min_delta=0, patience = NO_IMPROVE, restore_best_weights=True)
                 until_loss = EarlyStoppingByLossVal(monitor='loss', value=UNTIL_LOSS, verbose=1)
                 callbacks = [history, stop_when_no_improve, until_loss]
 
                 # Train
                 start = time.time()
-                set_model.fit([set_X_train, set_word_train[0], set_word_train[1]], set_y_train, epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, batch_size=BATCH_SIZE)
+                set_model[num].fit([set_X_train, set_word_train[0], set_word_train[1]], set_y_train, epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, batch_size=BATCH_SIZE)
                 tst = time.time()-start
                 break
             except:
@@ -464,16 +481,16 @@ if __name__ == "__main__":
         t += tst
 
         # Load Test file
-        set_X_test, set_word_test, set_y_test = cnn_process_set(set_test_data[num], 
+        set_X_test, set_word_test, set_y_test = crf_process_set(set_test_data[num], 
                                                                 set_test_count, num, 
                                                                 max_set, path_max_len, 
-                                                                con_max_len, OOM_Split)
+                                                                con_max_len, OOM_Split, set_one_hot[num], False)
         
         page_test = int(len(set_X_test) / max_num)
 
         # Prediction
         ts_start = time.time()
-        pred = set_model.predict([set_X_test, set_word_test[0], set_word_test[1]], batch_size=VAL_BATCH_SIZE)
+        pred = set_model[num].predict([set_X_test, set_word_test[0], set_word_test[1]], batch_size=VAL_BATCH_SIZE)
         tsp = time.time()-ts_start
         ts += tsp
         pred = np.reshape(pred, [-1, max_label+1])
@@ -483,6 +500,7 @@ if __name__ == "__main__":
         set_col_type = set_func.get_col_type(current_path, num)
 
         # Output
+        set_X_test = np.reshape(set_X_test, [-1, 6])
         set_func.predict_output(current_path, model_name, num, set_col_type, result, max_label, set_X_test, max_num)
     
     # Process time
