@@ -296,13 +296,13 @@ def emb_padding_set(df, set_count, max_set, set_num, pad_len):
     for i in range(pad_len):
         tmp.append(0)
     count = 0
-    for pages in set_count[set_num-1]:
+    for pages in set_count[set_num]:
         set_len = pages
         for i in range(set_len):
             emb.append(df[count])
             count += 1
-        if set_len != max_set[set_num-1]:
-            for i in range(max_set[set_num-1]-set_len):
+        if set_len != max_set[set_num]:
+            for i in range(max_set[set_num]-set_len):
                 emb.append(tmp)
     if DEBUG:
         print(count)

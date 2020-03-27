@@ -266,22 +266,20 @@ def cnn_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
 # In[ ]:
 
 
-def emb_padding_set(df, set_count, set_num, pad_len):
+def emb_padding_set(df, set_count, max_set, set_num, pad_len):
     emb = []
     tmp = []
     for i in range(pad_len):
         tmp.append(0)
     count = 0
-    for pages in set_count[set_num-1]:
+    for pages in set_count[set_num]:
         set_len = pages
         for i in range(set_len):
             emb.append(df[count])
             count += 1
-        if set_len != max_set[set_num-1]:
-            for i in range(max_set[set_num-1]-set_len):
+        if set_len != max_set[set_num]:
+            for i in range(max_set[set_num]-set_len):
                 emb.append(tmp)
-    if DEBUG:
-        print(count)
     return emb
 
 
@@ -300,7 +298,7 @@ def cnn_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len):
     word_cols = ["Path", "Content"]
     word_max_len = [path_max_len, con_max_len]
     for c in range(len(word_cols)):
-        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, set_num, word_max_len[c])).astype('int32'))
+        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, max_set, set_num, word_max_len[c])).astype('int32'))
     
     features = np.concatenate([feature for feature in features], -1)
     features = np.reshape(features, [-1, 6])
@@ -355,20 +353,23 @@ if __name__ == "__main__":
         metrics=['accuracy']
     )
     print(model.summary())
-    stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', min_delta=0, patience = NO_IMPROVE, restore_best_weights=True)
+    stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', min_delta=0, 
+                                                            patience = NO_IMPROVE, restore_best_weights=True)
     until_loss = EarlyStoppingByLossVal(monitor='loss', value=UNTIL_LOSS, verbose=1)
     callbacks = [history, stop_when_no_improve, until_loss]
     
     # Start training
     start = time.time()
-    model.fit([X_train, word_train[0], word_train[1]], y_train, epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, batch_size=BATCH_SIZE)
+    model.fit([X_train, word_train[0], word_train[1]], y_train, epochs=EPOCHS, callbacks=callbacks, 
+              use_multiprocessing=True, batch_size=BATCH_SIZE)
     t = time.time()-start
     
     # Graph
     #history.loss_plot('epoch')
     
     # Load test feature
-    X_test, word_test, y_test, _ = cnn_process_data(test_data, max_num, tokenizer_path, tokenizer_content, path_max_len, con_max_len)
+    X_test, word_test, y_test, _ = cnn_process_data(test_data, max_num, tokenizer_path, 
+                                                    tokenizer_content, path_max_len, con_max_len)
     
     # Start testing
     ts_start = time.time()
@@ -379,8 +380,12 @@ if __name__ == "__main__":
     result = get_result(pred, max_num)
     col_type = func.get_col_type(current_path)
     Set_data = func.predict_output(set_total, current_path, model_name, col_type, result, max_label_train, col_set_dict)
-    set_train_data, set_train_count = set_func.Set_train_file_generate(set_total, current_path, model_name, X_train, word_train, max_num)
-    set_test_data, set_test_count = set_func.Set_test_file_generate(set_total, current_path, model_name, Set_data, X_test, word_test, max_num)
+    set_train_data, set_train_count = set_func.Set_train_file_generate(set_total, current_path, 
+                                                                       model_name, X_train, word_train, 
+                                                                       max_num)
+    set_test_data, set_test_count = set_func.Set_test_file_generate(set_total, current_path, 
+                                                                    model_name, Set_data, X_test, 
+                                                                    word_test, max_num)
     page_c = len(result)
     
     # Process set
@@ -408,13 +413,17 @@ if __name__ == "__main__":
             metrics=['accuracy']
         )
         print(set_model.summary())
-        stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', min_delta=0, patience = NO_IMPROVE, restore_best_weights=True)
+        stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', 
+                                                                min_delta=0, patience = NO_IMPROVE, 
+                                                                restore_best_weights=True)
         until_loss = EarlyStoppingByLossVal(monitor='loss', value=UNTIL_LOSS, verbose=1)
         callbacks = [history, stop_when_no_improve, until_loss]
 
         # Train
         start = time.time()
-        set_model.fit([set_X_train, set_word_train[0], set_word_train[1]], set_y_train, epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, batch_size=BATCH_SIZE)
+        set_model.fit([set_X_train, set_word_train[0], set_word_train[1]], set_y_train, 
+                      epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, 
+                      batch_size=BATCH_SIZE)
         tst = time.time()-start
         t += tst
 
