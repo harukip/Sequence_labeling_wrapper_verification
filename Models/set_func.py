@@ -24,15 +24,6 @@ def feature_padding_set(df, set_count, set_num, max_num):
                 feature.append(9999)
     return feature
 
-def one_of_n(ans, total):
-    tmp = []
-    for i in range(int(total)):
-        if ans == i:
-            tmp.append(1.0)
-        else:
-            tmp.append(0.0)
-    return tmp
-
 def label_padding_set(df, set_count, set_num, max_num):
     label = []
     count = 0

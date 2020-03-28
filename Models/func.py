@@ -114,6 +114,15 @@ def node_emb(data, num, pad_len, max_num):
         output.append(tmp)
     return output
 
+def one_of_n(ans, total):
+    tmp = []
+    for i in range(int(total)):
+        if ans == i:
+            tmp.append(1.0)
+        else:
+            tmp.append(0.0)
+    return tmp
+
 def word2features(sent, i):
     '''
     Convert each feature into CRFSuite input form.

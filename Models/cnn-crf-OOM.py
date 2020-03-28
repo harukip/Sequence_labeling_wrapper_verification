@@ -268,8 +268,6 @@ def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
     for c in range(len(word_cols)):
         word_features.append(np.array(func.node_emb(word_cols[c], num, word_max_len[c], max_num)).astype('int32'))
     label_array = np.array(func.label_padding(df['Label'], num, max_num)).astype('int32')
-    m_label = df['Label'].max()
-    
     feature = np.concatenate([feature for feature in features], -1)
     
     # OOM
@@ -278,13 +276,12 @@ def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
     word = [np.reshape(word_features[c], [-1, int(max_num/OOM_Split), word_max_len[c]]) for c in range(len(word_cols))]
     
     feature = feature.astype('float32')
-    label_array = label_array.flatten()
-    if isTrain:
-        y_onehot = one_hot.fit_transform(np.reshape(label_array, [-1, 1])).toarray()
-    else:
-        y_onehot = one_hot.transform(np.reshape(label_array, [-1, 1])).toarray()
-    y_onehot = np.reshape(y_onehot, [-1, int(max_num/OOM_Split), max_label+1])
-    return feature, word, y_onehot, m_label
+    label = []
+    for page in range(label_array.shape[0]):
+        for node in range(label_array.shape[1]):
+            label.append(func.one_of_n(label_array[page][node], max_label+1))
+    y_onehot = np.reshape(np.array(label), [-1, int(max_num/OOM_Split), max_label+1])
+    return feature, word, y_onehot, max_label
 
 
 # In[ ]:
@@ -334,13 +331,12 @@ def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, 
     word = [np.reshape(word_features[c], [-1, int(max_num/OOM_Split), word_max_len[c]]) for c in range(len(word_cols))]
     
     features = features.astype('float32')
-    label = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_num)).astype('int32')
-    label = label.flatten()
-    if isTrain:
-        y_onehot = one_hot.fit_transform(np.reshape(label, [-1, 1])).toarray()
-    else:
-        y_onehot = one_hot.transform(np.reshape(label, [-1, 1])).toarray()
-    y_onehot = np.reshape(y_onehot, [-1, int(max_num/OOM_Split), max_label+1])
+    label_array = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_num)).astype('int32')
+    label = []
+    for page in range(label_array.shape[0]):
+        for node in range(label_array.shape[1]):
+            label.append(func.one_of_n(label_array[page][node], max_label+1))
+    y_onehot = np.reshape(label, [-1, int(max_num/OOM_Split), max_label+1])
     return features, word, y_onehot
 
 
@@ -398,7 +394,7 @@ if __name__ == "__main__":
                 metrics=[crf.accuracy]
             )
             print(model.summary())
-    
+
             stop_when_no_improve = tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', min_delta=0, patience = NO_IMPROVE, restore_best_weights=True)
             until_loss = EarlyStoppingByLossVal(monitor='loss', value=UNTIL_LOSS, verbose=1)
             callbacks = [history, stop_when_no_improve, until_loss]
