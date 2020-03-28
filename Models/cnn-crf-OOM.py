@@ -290,7 +290,7 @@ def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_le
 # In[ ]:
 
 
-def emb_padding_set(df, set_count, max_set, set_num, pad_len):
+def emb_padding_set(df, set_count, max_num, set_num, pad_len):
     emb = []
     tmp = []
     for i in range(pad_len):
@@ -301,8 +301,8 @@ def emb_padding_set(df, set_count, max_set, set_num, pad_len):
         for i in range(set_len):
             emb.append(df[count])
             count += 1
-        if set_len != max_set[set_num]:
-            for i in range(max_set[set_num]-set_len):
+        if set_len != max_num:
+            for i in range(max_num-set_len):
                 emb.append(tmp)
     if DEBUG:
         print(count)
@@ -313,31 +313,34 @@ def emb_padding_set(df, set_count, max_set, set_num, pad_len):
 
 
 def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, OOM_Split, one_hot, isTrain):
+    max_num = max_set[set_num]
+    if max_num%OOM_Split != 0: # Let max num can be spilt into 10.
+        max_num += OOM_Split - max_num%OOM_Split
     cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
     features = []
     word_features = []
     for c in range(len(cols)):
-        features.append(np.array(set_func.feature_padding_set(df[cols[c]], set_count, set_num, max_set)).astype('int32'))
+        features.append(np.array(set_func.feature_padding_set(df[cols[c]], set_count, set_num, max_num)).astype('int32'))
         features[c] = np.expand_dims(features[c], -1)
     
     word_cols = ["Path", "Content"]
     word_max_len = [path_max_len, con_max_len]
     for c in range(len(word_cols)):
-        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, max_set, set_num, word_max_len[c])).astype('int32'))
+        word_features.append(np.array(emb_padding_set(df[word_cols[c]], set_count, max_num, set_num, word_max_len[c])).astype('int32'))
     
     features = np.concatenate([feature for feature in features], -1)
-    features = np.reshape(features, [-1, max_set[set_num], 6])
+    features = np.reshape(features, [-1, int(max_num/OOM_Split), 6])
     
-    word = [np.reshape(word_features[c], [-1, int(max_set[set_num]/OOM_Split), word_max_len[c]]) for c in range(len(word_cols))]
+    word = [np.reshape(word_features[c], [-1, int(max_num/OOM_Split), word_max_len[c]]) for c in range(len(word_cols))]
     
     features = features.astype('float32')
-    label = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_set)).astype('int32')
+    label = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_num)).astype('int32')
     label = label.flatten()
     if isTrain:
         y_onehot = one_hot.fit_transform(np.reshape(label, [-1, 1])).toarray()
     else:
         y_onehot = one_hot.transform(np.reshape(label, [-1, 1])).toarray()
-    y_onehot = np.reshape(y_onehot, [-1, int(max_set[set_num]/OOM_Split), max_label+1])
+    y_onehot = np.reshape(y_onehot, [-1, int(max_num/OOM_Split), max_label+1])
     return features, word, y_onehot
 
 
@@ -371,6 +374,7 @@ if __name__ == "__main__":
     
     while True:
         try:
+            print("OOM:", OOM_Split, "process train features.")
             if max_num%OOM_Split != 0: # Let max num can be spilt into 10.
                 max_num += OOM_Split - max_num%OOM_Split
 
@@ -384,6 +388,7 @@ if __name__ == "__main__":
             page_num = int(len(y_train)/max_num)
 
             # Define model
+            print("Start training.")
             crf = CRF(False)
             model = model_word_only(crf, max_num, max_label_train, OOM_Split)
             history = func.LossHistory()
@@ -409,6 +414,7 @@ if __name__ == "__main__":
     #history.loss_plot('epoch')
     
     # Load test feature
+    print("process test features")
     X_test, word_test, y_test, _ = crf_process_data(test_data, max_num, tokenizer_path, 
                                                     tokenizer_content, path_max_len, 
                                                     con_max_len, OOM_Split, one_hot, False)
@@ -453,12 +459,14 @@ if __name__ == "__main__":
         set_one_hot.append(OneHotEncoder())
         while True:
             try:
+                print("OOM:", OOM_Split, "process train features.")
                 set_X_train, set_word_train, set_y_train = crf_process_set(set_train_data[num], 
                                                                            set_train_count, num, 
                                                                            max_set, path_max_len, 
                                                                            con_max_len, OOM_Split, set_one_hot[num], True)
 
                 page_num = int(len(set_X_train)/max_num)
+                set_crf[num] = CRF(False)
                 set_model.append(model_word_only(set_crf[num], max_num, max_label, OOM_Split))
                 history = func.LossHistory()
                 set_model[num].compile(
@@ -472,6 +480,7 @@ if __name__ == "__main__":
                 callbacks = [history, stop_when_no_improve, until_loss]
 
                 # Train
+                print("Start training.")
                 start = time.time()
                 set_model[num].fit([set_X_train, set_word_train[0], set_word_train[1]], set_y_train, epochs=EPOCHS, callbacks=callbacks, use_multiprocessing=True, batch_size=BATCH_SIZE)
                 tst = time.time()-start
@@ -481,6 +490,7 @@ if __name__ == "__main__":
         t += tst
 
         # Load Test file
+        print("process test features.")
         set_X_test, set_word_test, set_y_test = crf_process_set(set_test_data[num], 
                                                                 set_test_count, num, 
                                                                 max_set, path_max_len, 

@@ -11,7 +11,7 @@ def max_num_set(set_total, set_data_count):
         max_set[sets] = max(set_data_count[sets])
     return max_set
 
-def feature_padding_set(df, set_count, set_num, max_set):
+def feature_padding_set(df, set_count, set_num, max_num):
     feature = []
     count = 0
     for pages in set_count[set_num]:
@@ -19,8 +19,8 @@ def feature_padding_set(df, set_count, set_num, max_set):
         for i in range(set_len):
             feature.append(df[count])
             count += 1
-        if set_len != max_set[set_num]:
-            for i in range(max_set[set_num] - set_len):
+        if set_len != max_num:
+            for i in range(max_num - set_len):
                 feature.append(9999)
     return feature
 
@@ -33,7 +33,7 @@ def one_of_n(ans, total):
             tmp.append(0.0)
     return tmp
 
-def label_padding_set(df, set_count, set_num, max_set):
+def label_padding_set(df, set_count, set_num, max_num):
     label = []
     count = 0
     for pages in set_count[set_num]:
@@ -41,8 +41,8 @@ def label_padding_set(df, set_count, set_num, max_set):
         for i in range(set_len):
             label.append(df[count])
             count += 1
-        if set_len != max_set[set_num]:
-            for i in range(max_set[set_num] - set_len):
+        if set_len != max_num:
+            for i in range(max_num - set_len):
                 label.append(0)
     return label
 
