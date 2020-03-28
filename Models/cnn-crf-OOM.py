@@ -240,7 +240,7 @@ def get_result(predictions, max_num):
 # In[ ]:
 
 
-def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_len, con_max_len, OOM_Split, one_hot, isTrain):
+def crf_process_data(df, max_num, tokenizer_path, tokenizer_content, path_max_len, con_max_len, OOM_Split):
     '''
     Load the csv file and convert it to np array.
     '''
@@ -309,10 +309,11 @@ def emb_padding_set(df, set_count, max_num, set_num, pad_len):
 # In[ ]:
 
 
-def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, OOM_Split, one_hot, isTrain):
+def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, OOM_Split, max_label):
     max_num = max_set[set_num]
     if max_num%OOM_Split != 0: # Let max num can be spilt into 10.
         max_num += OOM_Split - max_num%OOM_Split
+    
     cols = ['Leafnode', 'PTypeSet', 'TypeSet', 'Contentid', 'Pathid', 'Simseqid']
     features = []
     word_features = []
@@ -332,6 +333,7 @@ def crf_process_set(df, set_count, set_num, max_set, path_max_len, con_max_len, 
     
     features = features.astype('float32')
     label_array = np.array(set_func.label_padding_set(df['Label'], set_count, set_num, max_num)).astype('int32')
+    label_array = np.reshape(label_array, [-1, max_num])
     label = []
     for page in range(label_array.shape[0]):
         for node in range(label_array.shape[1]):
@@ -374,10 +376,9 @@ if __name__ == "__main__":
             if max_num%OOM_Split != 0: # Let max num can be spilt into 10.
                 max_num += OOM_Split - max_num%OOM_Split
 
-            one_hot = OneHotEncoder()
             X_train, word_train, y_train, _ = crf_process_data(train_data, max_num, tokenizer_path, 
                                                                tokenizer_content, path_max_len, 
-                                                               con_max_len, OOM_Split, one_hot, True)
+                                                               con_max_len, OOM_Split)
 
             path_word_size = len(tokenizer_path.index_docs)
             con_word_size = len(tokenizer_content.index_docs)
@@ -413,7 +414,7 @@ if __name__ == "__main__":
     print("process test features")
     X_test, word_test, y_test, _ = crf_process_data(test_data, max_num, tokenizer_path, 
                                                     tokenizer_content, path_max_len, 
-                                                    con_max_len, OOM_Split, one_hot, False)
+                                                    con_max_len, OOM_Split)
     
     # Start testing
     ts_start = time.time()
@@ -444,22 +445,19 @@ if __name__ == "__main__":
     max_set = []
     for i in range(len(max_num_train)):
         max_set.append(max(max_num_train[i], max_num_test[i]))
-    
     set_crf = [CRF(False) for _ in range(set_total)]
     set_model = []
-    set_one_hot = []
     for num in range(set_total):
         max_num = max_set[num]
-        max_label = max(set_train_data[num]['Label'])
+        _, max_label = func.load_data_num(set_train_data[num], True)
         OOM_Split = 1
-        set_one_hot.append(OneHotEncoder())
         while True:
             try:
                 print("OOM:", OOM_Split, "process train features.")
                 set_X_train, set_word_train, set_y_train = crf_process_set(set_train_data[num], 
                                                                            set_train_count, num, 
                                                                            max_set, path_max_len, 
-                                                                           con_max_len, OOM_Split, set_one_hot[num], True)
+                                                                           con_max_len, OOM_Split, max_label)
 
                 page_num = int(len(set_X_train)/max_num)
                 set_crf[num] = CRF(False)
@@ -482,6 +480,7 @@ if __name__ == "__main__":
                 tst = time.time()-start
                 break
             except:
+                print("failed")
                 OOM_Split += 1
         t += tst
 
@@ -490,7 +489,7 @@ if __name__ == "__main__":
         set_X_test, set_word_test, set_y_test = crf_process_set(set_test_data[num], 
                                                                 set_test_count, num, 
                                                                 max_set, path_max_len, 
-                                                                con_max_len, OOM_Split, set_one_hot[num], False)
+                                                                con_max_len, OOM_Split, max_label)
         
         page_test = int(len(set_X_test) / max_num)
 
