@@ -107,6 +107,7 @@ venv.bak/
 data/*
 Aempty/
 done/
+websites/
 
 # record data
 record.txt

@@ -10,7 +10,8 @@ def node_num(data):
     '''
     count = False
     num_list = []
-    data = data.astype('int32')
+    data = data.astype(np.int32)
+    data = data.tolist()
     for index in range(len(data)):
         if data[index] == 0 and count != False:
             num_list.append(data[index - 1] + 1)
@@ -34,7 +35,7 @@ def load_data_num(df, istrain):
     '''
     num, index = node_num(df['Leafnode'])
     if istrain:
-        max_label = df['Label'].astype('int32').max()
+        max_label = df['Label'].astype(np.int32).max()
         return max(num), max_label
     else:
         return max(num)
